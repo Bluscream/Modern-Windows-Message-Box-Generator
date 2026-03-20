@@ -132,7 +132,6 @@ internal static partial class Program
         if (!useToast && !useDialog) useDialog = true;
 
         string result = "None";
-        int intResult = 0;
         bool checkboxChecked = false;
         long startTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
@@ -144,7 +143,6 @@ internal static partial class Program
         {
             var sem = new SemaphoreSlim(0);
             string toastResult = "Dismissed";
-            int toastIntResult = 2; // Default to Cancel/Dismissed
 
             var builder = new ToastContentBuilder()
                 .AddText(string.IsNullOrEmpty(title) ? "Notification" : title)
@@ -187,14 +185,6 @@ internal static partial class Program
                     "retry" => "Retry",
                     _ => "Clicked"
                 };
-                toastIntResult = toastArgs.Argument switch
-                {
-                    "ok" => 1,
-                    "cancel" => 2,
-                    "yes" => 6,
-                    "no" => 7,
-                    "retry" => 4,
-                    _ => 1
                 };
                 sem.Release();
             };
@@ -208,7 +198,6 @@ internal static partial class Program
                     if (!sem.Wait(timeout))
                     {
                         toastResult = "Timeout";
-                        toastIntResult = 32000;
                     }
                 }
                 else
@@ -217,7 +206,6 @@ internal static partial class Program
                 }
 
                 result = toastResult;
-                intResult = toastIntResult;
             }
         }
 
@@ -249,7 +237,7 @@ internal static partial class Program
                 timer.Tick += (s, e) => { 
                     timer.Stop(); 
                     long endTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                    if (!string.IsNullOrEmpty(callbackUrl)) SendCallback(callbackUrl, "Timeout", 32000, false, "The dialog timed out.", checkbox, startTime, endTime);
+                    if (!string.IsNullOrEmpty(callbackUrl)) SendCallback(callbackUrl, "Timeout", false, checkbox, startTime, endTime);
                     Application.Exit(); Environment.Exit(0); 
                 };
                 timer.Start();
@@ -291,7 +279,6 @@ internal static partial class Program
 
             var dialogResult = MessageBox.Show(message, string.IsNullOrEmpty(title) ? " " : title, buttons, msgBoxIcon);
             result = dialogResult.ToString();
-            intResult = (int)dialogResult;
         }
         else
         {
@@ -384,60 +371,22 @@ internal static partial class Program
             var button = TaskDialog.ShowDialog(page);
             result = button?.Text ?? "Cancel";
             checkboxChecked = page.Verification?.Checked ?? false;
-            
-            // Map TaskDialogButton to standard IDs
-            if (button == TaskDialogButton.OK) intResult = 1;
-            else if (button == TaskDialogButton.Cancel) intResult = 2;
-            else if (button == TaskDialogButton.Abort) intResult = 3;
-            else if (button == TaskDialogButton.Retry) intResult = 4;
-            else if (button == TaskDialogButton.Ignore) intResult = 5;
-            else if (button == TaskDialogButton.Yes) intResult = 6;
-            else if (button == TaskDialogButton.No) intResult = 7;
-            else if (button == TaskDialogButton.Close) intResult = 8;
-            else if (button == TaskDialogButton.TryAgain) intResult = 10;
-            else if (button == TaskDialogButton.Continue) intResult = 11;
-            else intResult = 2; // Default to IDCANCEL if unknown
         }
-    }
 
         long finalEndTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
-        string resultDesc = intResult switch
-        {
-            1 => "The OK button was selected.",
-            2 => "The Cancel button was selected.",
-            3 => "The Abort button was selected.",
-            4 => "The Retry button was selected.",
-            5 => "The Ignore button was selected.",
-            6 => "The Yes button was selected.",
-            7 => "The No button was selected.",
-            8 => "The Close button was selected.",
-            10 => "The Try Again button was selected.",
-            11 => "The Continue button was selected.",
-            32000 => "The dialog timed out.",
-            _ => "The dialog was dismissed."
-        };
-
         if (!string.IsNullOrEmpty(callbackUrl))
         {
-            SendCallback(callbackUrl, result, intResult, checkboxChecked, resultDesc, checkbox, startTime, finalEndTime);
+            SendCallback(callbackUrl, result, checkboxChecked, checkbox, startTime, finalEndTime);
         }
     }
 
-    private static void SendCallback(string url, string result, int intResult, bool checkboxChecked, string description, string checkboxText, long started, long finished)
+    private static void SendCallback(string url, string result, bool checkboxChecked, string checkboxText, long started, long finished)
     {
         try
         {
-            var finalUrl = url.Replace("{return_value}", result)
-                              .Replace("{return_value_string}", result)
-                              .Replace("{ret_str}", result)
-                              .Replace("{return_value_int}", intResult.ToString())
-                              .Replace("{ret_int}", intResult.ToString())
-                              .Replace("{return_description}", description)
-                              .Replace("{ret_desc}", description)
-                              .Replace("{checkbox_checked}", checkboxChecked.ToString().ToLower())
+            var finalUrl = url.Replace("{result}", result)
                               .Replace("{cb_checked}", checkboxChecked.ToString().ToLower())
-                              .Replace("{checkbox_text}", checkboxText)
                               .Replace("{cb_text}", checkboxText)
                               .Replace("{time_started}", started.ToString())
                               .Replace("{time_finished}", finished.ToString());
