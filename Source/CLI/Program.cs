@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Net.Http;
 using Windows_Task_Dialog_Generator;
 
 namespace Modern_Windows_Message_Box_Generator.CLI;
@@ -25,6 +26,7 @@ internal static partial class Program
         string icon = "info";
         int timeout = 0;
         bool useClassic = false;
+        string callbackUrl = "";
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -40,6 +42,7 @@ internal static partial class Program
                     case "icon": if (i + 1 < args.Length) icon = args[++i].ToLower(); break;
                     case "timeout": if (i + 1 < args.Length && int.TryParse(args[++i], out var t)) timeout = t; break;
                     case "classic": useClassic = true; break;
+                    case "callback": if (i + 1 < args.Length) callbackUrl = args[++i]; break;
                 }
             }
             else if (arg.StartsWith("-") || arg.StartsWith("/"))
@@ -53,9 +56,12 @@ internal static partial class Program
                     case "icon": case "i": if (i + 1 < args.Length) icon = args[++i].ToLower(); break;
                     case "timeout": if (i + 1 < args.Length && int.TryParse(args[++i], out var t)) timeout = t; break;
                     case "classic": case "c": useClassic = true; break;
+                    case "callback": case "cb": if (i + 1 < args.Length) callbackUrl = args[++i]; break;
                 }
             }
         }
+
+        string result = "None";
 
         if (useClassic)
         {
@@ -80,58 +86,88 @@ internal static partial class Program
             if (timeout > 0)
             {
                 var timer = new System.Windows.Forms.Timer { Interval = timeout };
-                timer.Tick += (s, e) => { timer.Stop(); Application.Exit(); Environment.Exit(0); };
+                timer.Tick += (s, e) => { 
+                    timer.Stop(); 
+                    if (!string.IsNullOrEmpty(callbackUrl)) SendCallback(callbackUrl, "Timeout");
+                    Application.Exit(); Environment.Exit(0); 
+                };
                 timer.Start();
             }
 
-            MessageBox.Show(message, string.IsNullOrEmpty(title) ? " " : title, buttons, msgBoxIcon);
-            return;
+            var dialogResult = MessageBox.Show(message, string.IsNullOrEmpty(title) ? " " : title, buttons, msgBoxIcon);
+            result = dialogResult.ToString();
+        }
+        else
+        {
+            var page = new TaskDialogPage()
+            {
+                Caption = string.IsNullOrEmpty(title) ? " " : title,
+                Heading = "",
+                Text = message,
+                AllowCancel = true
+            };
+
+            switch (type)
+            {
+                case "ok": page.Buttons.Add(TaskDialogButton.OK); break;
+                case "okcancel": page.Buttons.Add(TaskDialogButton.OK); page.Buttons.Add(TaskDialogButton.Cancel); break;
+                case "yesno": page.Buttons.Add(TaskDialogButton.Yes); page.Buttons.Add(TaskDialogButton.No); break;
+                case "yesnocancel": page.Buttons.Add(TaskDialogButton.Yes); page.Buttons.Add(TaskDialogButton.No); page.Buttons.Add(TaskDialogButton.Cancel); break;
+                case "retrycancel": page.Buttons.Add(TaskDialogButton.Retry); page.Buttons.Add(TaskDialogButton.Cancel); break;
+                case "mb_ok": page.Buttons.Add(TaskDialogButton.OK); break;
+                case "mb_okcancel": page.Buttons.Add(TaskDialogButton.OK); page.Buttons.Add(TaskDialogButton.Cancel); break;
+                case "mb_yesno": page.Buttons.Add(TaskDialogButton.Yes); page.Buttons.Add(TaskDialogButton.No); break;
+                case "mb_yesnocancel": page.Buttons.Add(TaskDialogButton.Yes); page.Buttons.Add(TaskDialogButton.No); page.Buttons.Add(TaskDialogButton.Cancel); break;
+                case "mb_retrycancel": page.Buttons.Add(TaskDialogButton.Retry); page.Buttons.Add(TaskDialogButton.Cancel); break;
+                default: page.Buttons.Add(TaskDialogButton.OK); break;
+            }
+
+            switch (icon)
+            {
+                case "info": case "information": case "mb_iconinformation": case "mb_iconasterisk": page.Icon = TaskDialogIcon.Information; break;
+                case "warning": case "mb_iconwarning": case "mb_iconexclamation": page.Icon = TaskDialogIcon.Warning; break;
+                case "error": case "mb_iconerror": case "mb_iconstop": case "mb_iconhand": page.Icon = TaskDialogIcon.Error; break;
+                case "shield": page.Icon = TaskDialogIcon.Shield; break;
+                case "shieldblue": page.Icon = TaskDialogIcon.ShieldBlueBar; break;
+                case "shieldgray": page.Icon = TaskDialogIcon.ShieldGrayBar; break;
+                case "shieldgreen": page.Icon = TaskDialogIcon.ShieldSuccessGreenBar; break;
+                case "shieldyellow": page.Icon = TaskDialogIcon.ShieldWarningYellowBar; break;
+                case "shieldred": page.Icon = TaskDialogIcon.ShieldErrorRedBar; break;
+                default: page.Icon = TaskDialogIcon.None; break;
+            }
+
+            if (timeout > 0)
+            {
+                var timer = new System.Windows.Forms.Timer { Interval = timeout };
+                timer.Tick += (s, e) => { 
+                    timer.Stop(); 
+                    if (!string.IsNullOrEmpty(callbackUrl)) SendCallback(callbackUrl, "Timeout");
+                    Application.Exit(); 
+                };
+                timer.Start();
+            }
+
+            var button = TaskDialog.ShowDialog(page);
+            result = button?.Text ?? "Cancel";
         }
 
-        var page = new TaskDialogPage()
+        if (!string.IsNullOrEmpty(callbackUrl))
         {
-            Caption = string.IsNullOrEmpty(title) ? " " : title,
-            Heading = "",
-            Text = message,
-            AllowCancel = true
-        };
-
-        switch (type)
-        {
-            case "ok": page.Buttons.Add(TaskDialogButton.OK); break;
-            case "okcancel": page.Buttons.Add(TaskDialogButton.OK); page.Buttons.Add(TaskDialogButton.Cancel); break;
-            case "yesno": page.Buttons.Add(TaskDialogButton.Yes); page.Buttons.Add(TaskDialogButton.No); break;
-            case "yesnocancel": page.Buttons.Add(TaskDialogButton.Yes); page.Buttons.Add(TaskDialogButton.No); page.Buttons.Add(TaskDialogButton.Cancel); break;
-            case "retrycancel": page.Buttons.Add(TaskDialogButton.Retry); page.Buttons.Add(TaskDialogButton.Cancel); break;
-            case "mb_ok": page.Buttons.Add(TaskDialogButton.OK); break;
-            case "mb_okcancel": page.Buttons.Add(TaskDialogButton.OK); page.Buttons.Add(TaskDialogButton.Cancel); break;
-            case "mb_yesno": page.Buttons.Add(TaskDialogButton.Yes); page.Buttons.Add(TaskDialogButton.No); break;
-            case "mb_yesnocancel": page.Buttons.Add(TaskDialogButton.Yes); page.Buttons.Add(TaskDialogButton.No); page.Buttons.Add(TaskDialogButton.Cancel); break;
-            case "mb_retrycancel": page.Buttons.Add(TaskDialogButton.Retry); page.Buttons.Add(TaskDialogButton.Cancel); break;
-            default: page.Buttons.Add(TaskDialogButton.OK); break;
+            SendCallback(callbackUrl, result);
         }
+    }
 
-        switch (icon)
+    private static void SendCallback(string url, string result)
+    {
+        try
         {
-            case "info": case "information": case "mb_iconinformation": case "mb_iconasterisk": page.Icon = TaskDialogIcon.Information; break;
-            case "warning": case "mb_iconwarning": case "mb_iconexclamation": page.Icon = TaskDialogIcon.Warning; break;
-            case "error": case "mb_iconerror": case "mb_iconstop": case "mb_iconhand": page.Icon = TaskDialogIcon.Error; break;
-            case "shield": page.Icon = TaskDialogIcon.Shield; break;
-            case "shieldblue": page.Icon = TaskDialogIcon.ShieldBlueBar; break;
-            case "shieldgray": page.Icon = TaskDialogIcon.ShieldGrayBar; break;
-            case "shieldgreen": page.Icon = TaskDialogIcon.ShieldSuccessGreenBar; break;
-            case "shieldyellow": page.Icon = TaskDialogIcon.ShieldWarningYellowBar; break;
-            case "shieldred": page.Icon = TaskDialogIcon.ShieldErrorRedBar; break;
-            default: page.Icon = TaskDialogIcon.None; break;
+            var finalUrl = url.Replace("{return_value}", result);
+            using var client = new HttpClient();
+            _ = client.GetAsync(finalUrl).Result;
         }
-
-        if (timeout > 0)
+        catch (Exception ex)
         {
-            var timer = new System.Windows.Forms.Timer { Interval = timeout };
-            timer.Tick += (s, e) => { timer.Stop(); Application.Exit(); };
-            timer.Start();
+            Console.WriteLine($"Callback failed: {ex.Message}");
         }
-
-        TaskDialog.ShowDialog(page);
     }
 }
