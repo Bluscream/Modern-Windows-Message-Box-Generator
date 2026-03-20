@@ -27,13 +27,14 @@ internal static partial class Program
 
         for (int i = 0; i < args.Length; i++)
         {
-            switch (args[i].ToLower())
+            var arg = args[i].ToLower().TrimStart('-', '/');
+            switch (arg)
             {
-                case "--title": if (i + 1 < args.Length) title = args[++i]; break;
-                case "--message": if (i + 1 < args.Length) message = args[++i]; break;
-                case "--type": if (i + 1 < args.Length) type = args[++i].ToLower(); break;
-                case "--icon": if (i + 1 < args.Length) icon = args[++i].ToLower(); break;
-                case "--timeout": if (i + 1 < args.Length && int.TryParse(args[++i], out var t)) timeout = t; break;
+                case "title": case "t": if (i + 1 < args.Length) title = args[++i]; break;
+                case "message": case "m": if (i + 1 < args.Length) message = args[++i]; break;
+                case "type": if (i + 1 < args.Length) type = args[++i].ToLower(); break;
+                case "icon": case "i": if (i + 1 < args.Length) icon = args[++i].ToLower(); break;
+                case "timeout": if (i + 1 < args.Length && int.TryParse(args[++i], out var t)) timeout = t; break;
             }
         }
 
