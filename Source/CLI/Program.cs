@@ -184,6 +184,7 @@ internal static partial class Program
                     "no" => "No",
                     "retry" => "Retry",
                     _ => "Clicked"
+                };
                 sem.Release();
             };
 
@@ -370,6 +371,7 @@ internal static partial class Program
             result = button?.Text ?? "Cancel";
             checkboxChecked = page.Verification?.Checked ?? false;
         }
+    }
 
         long finalEndTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
