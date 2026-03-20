@@ -36,9 +36,7 @@ msgbox.exe --title "Notification" --message "Hello World"
 
 ### 🔗 Callback Placeholders
 When using `--callback`, these placeholders are automatically replaced in the URL:
-- `{ret_str}`: The text of the button clicked (e.g., `OK`, `Yes`, `Timeout`).
-- `{ret_int}`: Standard Windows Dialog ID (e.g., `1` for OK, `2` for Cancel, `32000` for Timeout).
-- `{ret_desc}`: A descriptive sentence of the result.
+- `{result}`: The string result (e.g., `OK`, `Yes`, `Cancel`, `Timeout`).
 - `{cb_checked}`: `true`/`false` status of the verification checkbox.
 - `{cb_text}`: The label text of the checkbox.
 - `{time_started}`: Unix timestamp when the notification appeared.
