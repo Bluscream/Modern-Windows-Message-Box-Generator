@@ -70,6 +70,9 @@ internal static partial class Program
         bool useClassic = false;
         string callbackUrl = "";
         bool flash = false;
+        bool ding = false;
+        bool useToast = false;
+        bool useXSOverlay = false;
         bool useOVRToolkit = false;
         bool useDialog = false;
 
