@@ -70,10 +70,8 @@ internal static partial class Program
         bool useClassic = false;
         string callbackUrl = "";
         bool flash = false;
-        bool ding = false;
-        bool useToast = false;
-        bool useXSOverlay = false;
         bool useOVRToolkit = false;
+        bool useDialog = false;
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -97,6 +95,7 @@ internal static partial class Program
                     case "flash": flash = true; break;
                     case "ding": ding = true; break;
                     case "toast": useToast = true; break;
+                    case "messagebox": useDialog = true; break;
                     case "xsoverlay": useXSOverlay = true; break;
                     case "ovrtoolkit": useOVRToolkit = true; break;
                 }
@@ -120,11 +119,14 @@ internal static partial class Program
                     case "fl": flash = true; break;
                     case "dg": ding = true; break;
                     case "ts": useToast = true; break;
+                    case "mb": useDialog = true; break;
                     case "xs": useXSOverlay = true; break;
                     case "ov": useOVRToolkit = true; break;
                 }
             }
         }
+
+        if (!useToast && !useDialog) useDialog = true;
 
         string result = "None";
         int intResult = 0;
@@ -196,23 +198,29 @@ internal static partial class Program
 
             builder.Show();
 
-            if (timeout > 0)
+            if (!useDialog)
             {
-                if (!sem.Wait(timeout))
+                if (timeout > 0)
                 {
-                    toastResult = "Timeout";
-                    toastIntResult = 32000;
+                    if (!sem.Wait(timeout))
+                    {
+                        toastResult = "Timeout";
+                        toastIntResult = 32000;
+                    }
                 }
-            }
-            else
-            {
-                sem.Wait();
-            }
+                else
+                {
+                    sem.Wait();
+                }
 
-            result = toastResult;
-            intResult = toastIntResult;
+                result = toastResult;
+                intResult = toastIntResult;
+            }
         }
-        else if (useClassic)
+
+        if (useDialog)
+        {
+            if (useClassic)
         {
             MessageBoxButtons buttons = MessageBoxButtons.OK;
             switch (type)
@@ -387,6 +395,7 @@ internal static partial class Program
             else if (button == TaskDialogButton.Continue) intResult = 11;
             else intResult = 2; // Default to IDCANCEL if unknown
         }
+    }
 
         long finalEndTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
