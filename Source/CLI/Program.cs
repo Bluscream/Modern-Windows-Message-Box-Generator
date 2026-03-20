@@ -437,6 +437,8 @@ internal static partial class Program
         {
             Console.WriteLine($"Callback failed: {ex.Message}");
         }
+    }
+
     private static void SendXSOverlay(string title, string message, int timeout)
     {
         try
