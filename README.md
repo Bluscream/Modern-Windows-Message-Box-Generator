@@ -1,38 +1,59 @@
-# Modern Windows Message Box Generator
+# Modern Windows Message Box Generator (CLI & UI)
 
-**Purpose:**  Generates a customizable "Task Dialog" box - a more modern version of the old Windows message box.'
+**Purpose:** Generates a customizable "Task Dialog" box - a more modern version of the old Windows message box. Now includes a powerful CLI helper for integration into scripts and automations.
 
-↘️ **How to Download:** Visit the [Releases](https://github.com/ThioJoe/Modern-Windows-Message-Box-Generator/releases) page, and look under "Assets" for the latest release.
+## 🏗️ Project Structure
+The project has been refactored into three main components:
+- **Common**: Shared logic and data structures used by both CLI and UI.
+- **CLI (`msgbox.exe`)**: A command-line utility for triggering notifications with callback support and advanced timing.
+- **UI (`msgboxui.exe`)**: The original graphical generator for designing and previewing dialogs.
 
-## Key Features
+## 🚀 CLI Usage (`msgbox.exe`)
+The CLI version supports both modern `TaskDialog` and classic `MessageBox` modes.
 
-- **Set Any Text**: Choose the text to display for each element, or leave it blank to not show that part.
-- **Custom Buttons**: Display up to 3 buttons with custom text, and set whether they appear enabled or disabled.
-- **Choose Icons:**
-    - Select from a range of default icons for both the main icon and title bar icon.
-    - Use custom icons from image files. Including image files, icon files, or the icon associated with any Exe file.
-    - Choose icons directly from the `imageres.dll` file using their ID.
-- **Icon Selection Helper:** Click the "View Icon IDs" button to see icons from `imageres.dll`. Click any of them to automatically set it as the selected icon.
-- **Icon Background Colored Bars:** Choose from various colors for the icon background bar, including green, blue, gray, red, yellow, or none.
+### Basic Syntax
+```powershell
+msgbox.exe --title "Notification" --message "Hello World"
+```
 
-## More Features:
-- **No Installation Required:** The program is a single file and doesn't need to be installed
-- **Signed:** The exe is signed with a trusted certificate so you won't get a pop up from Windows security
+### Advanced Parameters
+| Parameter | Shorthand | Description |
+| :--- | :--- | :--- |
+| `--heading` | `-h` | Set the dialog's main heading text. |
+| `--footer` | `-f` | Set the footnote text at the bottom. |
+| `--details` | `-d` | Set text for the "Show Details" expanded section. |
+| `--checkbox`| `-x` | Display a verification checkbox with the given label. |
+| `--type` | `-y` | Button set (`ok`, `okcancel`, `yesno`, `retrycancel`, etc.). |
+| `--icon` | `-i` | Icon (`info`, `warning`, `error`, `shield`, `shieldred`, etc.). |
+| `--timeout` | `-o` | Auto-close after `N` milliseconds. |
+| `--flash` | `-fl`| Flash the window in the taskbar until active. |
+| `--ding` | `-dg`| Play a system alert sound on appearance. |
+| `--classic` | `-c` | Fallback to the classic Windows `MessageBox`. |
+| `--callback`| `-cb`| HTTP GET URL to call on dismissal. |
 
-## Examples 
-<p align="center">
-<img width="450" alt="Example Message Box Go Touch Grass" src="https://github.com/user-attachments/assets/64c7451e-131e-4bfd-b770-5b78d0c22026">
-<img width="450" alt="Example Message Box Visual Studio" src="https://github.com/user-attachments/assets/b232caa7-8253-4ffc-ae72-d6725d99c152">
-</p>
+### 🔗 Callback Placeholders
+When using `--callback`, these placeholders are automatically replaced in the URL:
+- `{ret_str}`: The text of the button clicked (e.g., `OK`, `Yes`, `Timeout`).
+- `{ret_int}`: Standard Windows Dialog ID (e.g., `1` for OK, `2` for Cancel, `32000` for Timeout).
+- `{ret_desc}`: A descriptive sentence of the result.
+- `{cb_checked}`: `true`/`false` status of the verification checkbox.
+- `{cb_text}`: The label text of the checkbox.
+- `{time_started}`: Unix timestamp when the notification appeared.
+- `{time_finished}`: Unix timestamp when the notification was closed/timed out.
 
-## Main Window
-<p align="center">
-<img width="700" alt="Main Window" src="https://github.com/user-attachments/assets/df60f648-c259-42a0-a0d3-4a6a4a529b8b">
-</p>
+## 🛠️ How to Compile
+Requires .NET 9.0 SDK.
 
-## How to Compile
-Requires .NET 9.0, but no other external dependencies or nuget packages.
+### CLI (Single File)
+```powershell
+dotnet publish Source/CLI/Modern-Windows-Message-Box-Generator.CLI.csproj -c Release -r win-x64 -p:PublishSingleFile=true --self-contained true
+```
 
-1. Open the solution file (`TaskDialogGenerator.sln`) in Visual Studio 2022.
-2. Choose the build configuration (either `Release` or `Debug`).
-3. Compile by going to `Build` > `Build Solution` or, if in `Debug` configuration, `Debug` > `Start Debugging`.
+### UI (Single File)
+```powershell
+dotnet publish Source/UI/Modern-Windows-Message-Box-Generator.UI.csproj -c Release -r win-x64 -p:PublishSingleFile=true --self-contained true
+```
+
+## Credits
+Based on the original [Modern-Windows-Message-Box-Generator](https://github.com/ThioJoe/Modern-Windows-Message-Box-Generator) by ThioJoe.
+Modified by Bluscream to add full CLI support and automated callbacks.
