@@ -184,8 +184,6 @@ internal static partial class Program
                     "no" => "No",
                     "retry" => "Retry",
                     _ => "Clicked"
-                };
-                };
                 sem.Release();
             };
 
@@ -362,7 +360,7 @@ internal static partial class Program
                 timer.Tick += (s, e) => { 
                     timer.Stop(); 
                     long endTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                    if (!string.IsNullOrEmpty(callbackUrl)) SendCallback(callbackUrl, "Timeout", 32000, false, "The dialog timed out.", checkbox, startTime, endTime);
+                    if (!string.IsNullOrEmpty(callbackUrl)) SendCallback(callbackUrl, "Timeout", false, checkbox, startTime, endTime);
                     Application.Exit(); 
                 };
                 timer.Start();
