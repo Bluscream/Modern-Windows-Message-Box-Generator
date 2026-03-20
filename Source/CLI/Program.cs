@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Net.Http;
+using System.Media;
 using Windows_Task_Dialog_Generator;
 
 namespace Modern_Windows_Message_Box_Generator.CLI;
@@ -9,12 +10,32 @@ internal static partial class Program
     [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
     private static partial IntPtr SendMessage(IntPtr hWnd, uint Msg, UIntPtr wParam, IntPtr lParam);
 
+    [StructLayout(LayoutKind.Sequential)]
+    public struct FLASHWINFO
+    {
+        public uint cbSize;
+        public IntPtr hwnd;
+        public uint dwFlags;
+        public uint uCount;
+        public uint dwTimeout;
+    }
+
+    public const uint FLASHW_ALL = 3;
+    public const uint FLASHW_TIMERNOFG = 12;
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool FlashWindowEx(ref FLASHWINFO pwfi);
+
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr GetActiveWindow();
+
     [STAThread]
     static void Main(string[] args)
     {
         if (args.Length == 0)
         {
-            Console.WriteLine("Usage: --title \"...\" --message \"...\" [--type ok|okcancel|yesno|...] [--icon info|warning|error|shield|...] [--timeout ms]");
+            Console.WriteLine("Usage: --title \"...\" --message \"...\" [--type ok|okcancel|...] [--icon info|warning|...] [--timeout ms] [--flash] [--ding]");
             return;
         }
 
@@ -31,6 +52,8 @@ internal static partial class Program
         int timeout = 0;
         bool useClassic = false;
         string callbackUrl = "";
+        bool flash = false;
+        bool ding = false;
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -51,6 +74,8 @@ internal static partial class Program
                     case "timeout": if (i + 1 < args.Length && int.TryParse(args[++i], out var t)) timeout = t; break;
                     case "classic": useClassic = true; break;
                     case "callback": if (i + 1 < args.Length) callbackUrl = args[++i]; break;
+                    case "flash": flash = true; break;
+                    case "ding": ding = true; break;
                 }
             }
             else if (arg.StartsWith("-") || arg.StartsWith("/"))
@@ -58,17 +83,19 @@ internal static partial class Program
                 var cmd = arg.Substring(1);
                 switch (cmd)
                 {
-                    case "title": case "t": if (i + 1 < args.Length) title = args[++i]; break;
-                    case "message": case "m": if (i + 1 < args.Length) message = args[++i]; break;
-                    case "heading": case "h": if (i + 1 < args.Length) heading = args[++i]; break;
-                    case "footer": case "f": if (i + 1 < args.Length) footer = args[++i]; break;
-                    case "details": case "d": if (i + 1 < args.Length) details = args[++i]; break;
-                    case "checkbox": case "x": if (i + 1 < args.Length) checkbox = args[++i]; break;
-                    case "type": if (i + 1 < args.Length) type = args[++i].ToLower(); break;
-                    case "icon": case "i": if (i + 1 < args.Length) icon = args[++i].ToLower(); break;
-                    case "timeout": if (i + 1 < args.Length && int.TryParse(args[++i], out var t)) timeout = t; break;
-                    case "classic": case "c": useClassic = true; break;
-                    case "callback": case "cb": if (i + 1 < args.Length) callbackUrl = args[++i]; break;
+                    case "t": if (i + 1 < args.Length) title = args[++i]; break;
+                    case "m": if (i + 1 < args.Length) message = args[++i]; break;
+                    case "h": if (i + 1 < args.Length) heading = args[++i]; break;
+                    case "f": if (i + 1 < args.Length) footer = args[++i]; break;
+                    case "d": if (i + 1 < args.Length) details = args[++i]; break;
+                    case "x": if (i + 1 < args.Length) checkbox = args[++i]; break;
+                    case "y": if (i + 1 < args.Length) type = args[++i].ToLower(); break;
+                    case "i": if (i + 1 < args.Length) icon = args[++i].ToLower(); break;
+                    case "o": if (i + 1 < args.Length && int.TryParse(args[++i], out var t)) timeout = t; break;
+                    case "c": useClassic = true; break;
+                    case "cb": if (i + 1 < args.Length) callbackUrl = args[++i]; break;
+                    case "fl": flash = true; break;
+                    case "dg": ding = true; break;
                 }
             }
         }
@@ -77,6 +104,8 @@ internal static partial class Program
         int intResult = 0;
         bool checkboxChecked = false;
         long startTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+        if (ding) SystemSounds.Exclamation.Play();
 
         if (useClassic)
         {
@@ -110,6 +139,28 @@ internal static partial class Program
                 timer.Start();
             }
 
+            if (flash)
+            {
+                var flashTimer = new System.Windows.Forms.Timer { Interval = 100 };
+                flashTimer.Tick += (s, e) => {
+                    flashTimer.Stop();
+                    var hwnd = GetActiveWindow();
+                    if (hwnd != IntPtr.Zero)
+                    {
+                        var info = new FLASHWINFO
+                        {
+                            cbSize = (uint)Marshal.SizeOf(typeof(FLASHWINFO)),
+                            hwnd = hwnd,
+                            dwFlags = FLASHW_ALL | FLASHW_TIMERNOFG,
+                            uCount = uint.MaxValue,
+                            dwTimeout = 0
+                        };
+                        FlashWindowEx(ref info);
+                    }
+                };
+                flashTimer.Start();
+            }
+
             var dialogResult = MessageBox.Show(message, string.IsNullOrEmpty(title) ? " " : title, buttons, msgBoxIcon);
             result = dialogResult.ToString();
             intResult = (int)dialogResult;
@@ -127,6 +178,30 @@ internal static partial class Program
             if (!string.IsNullOrEmpty(footer)) page.Footnote = new TaskDialogFootnote { Text = footer };
             if (!string.IsNullOrEmpty(details)) page.Expander = new TaskDialogExpander { Text = details };
             if (!string.IsNullOrEmpty(checkbox)) page.Verification = new TaskDialogVerificationCheckBox { Text = checkbox };
+
+            if (flash)
+            {
+                page.Created += (s, e) => {
+                    var flashTimer = new System.Windows.Forms.Timer { Interval = 50 };
+                    flashTimer.Tick += (fs, fe) => {
+                        flashTimer.Stop();
+                        var hwnd = GetActiveWindow();
+                        if (hwnd != IntPtr.Zero)
+                        {
+                            var info = new FLASHWINFO
+                            {
+                                cbSize = (uint)Marshal.SizeOf(typeof(FLASHWINFO)),
+                                hwnd = hwnd,
+                                dwFlags = FLASHW_ALL | FLASHW_TIMERNOFG,
+                                uCount = uint.MaxValue,
+                                dwTimeout = 0
+                            };
+                            FlashWindowEx(ref info);
+                        }
+                    };
+                    flashTimer.Start();
+                };
+            }
 
             switch (type)
             {
