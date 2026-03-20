@@ -62,6 +62,7 @@ internal static partial class Program
         }
 
         string result = "None";
+        int intResult = 0;
 
         if (useClassic)
         {
@@ -88,7 +89,7 @@ internal static partial class Program
                 var timer = new System.Windows.Forms.Timer { Interval = timeout };
                 timer.Tick += (s, e) => { 
                     timer.Stop(); 
-                    if (!string.IsNullOrEmpty(callbackUrl)) SendCallback(callbackUrl, "Timeout");
+                    if (!string.IsNullOrEmpty(callbackUrl)) SendCallback(callbackUrl, "Timeout", 32000);
                     Application.Exit(); Environment.Exit(0); 
                 };
                 timer.Start();
@@ -96,6 +97,7 @@ internal static partial class Program
 
             var dialogResult = MessageBox.Show(message, string.IsNullOrEmpty(title) ? " " : title, buttons, msgBoxIcon);
             result = dialogResult.ToString();
+            intResult = (int)dialogResult;
         }
         else
         {
@@ -141,7 +143,7 @@ internal static partial class Program
                 var timer = new System.Windows.Forms.Timer { Interval = timeout };
                 timer.Tick += (s, e) => { 
                     timer.Stop(); 
-                    if (!string.IsNullOrEmpty(callbackUrl)) SendCallback(callbackUrl, "Timeout");
+                    if (!string.IsNullOrEmpty(callbackUrl)) SendCallback(callbackUrl, "Timeout", 32000);
                     Application.Exit(); 
                 };
                 timer.Start();
@@ -149,19 +151,35 @@ internal static partial class Program
 
             var button = TaskDialog.ShowDialog(page);
             result = button?.Text ?? "Cancel";
+            
+            // Map TaskDialogButton to standard IDs
+            if (button == TaskDialogButton.OK) intResult = 1;
+            else if (button == TaskDialogButton.Cancel) intResult = 2;
+            else if (button == TaskDialogButton.Abort) intResult = 3;
+            else if (button == TaskDialogButton.Retry) intResult = 4;
+            else if (button == TaskDialogButton.Ignore) intResult = 5;
+            else if (button == TaskDialogButton.Yes) intResult = 6;
+            else if (button == TaskDialogButton.No) intResult = 7;
+            else if (button == TaskDialogButton.Close) intResult = 8;
+            else intResult = 2; // Default to Cancel if unknown
         }
 
         if (!string.IsNullOrEmpty(callbackUrl))
         {
-            SendCallback(callbackUrl, result);
+            SendCallback(callbackUrl, result, intResult);
         }
     }
 
-    private static void SendCallback(string url, string result)
+    private static void SendCallback(string url, string result, int intResult)
     {
         try
         {
-            var finalUrl = url.Replace("{return_value}", result);
+            var finalUrl = url.Replace("{return_value}", result)
+                              .Replace("{return_value_string}", result)
+                              .Replace("{ret_str}", result)
+                              .Replace("{return_value_int}", intResult.ToString())
+                              .Replace("{ret_int}", intResult.ToString());
+
             using var client = new HttpClient();
             _ = client.GetAsync(finalUrl).Result;
         }
