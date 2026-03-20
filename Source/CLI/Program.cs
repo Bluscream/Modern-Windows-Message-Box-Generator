@@ -136,8 +136,8 @@ internal static partial class Program
         long startTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
         if (ding) SystemSounds.Exclamation.Play();
-        if (useXSOverlay) SendXSOverlay(title, message, timeout);
-        if (useOVRToolkit) SendOVRToolkit(title, message);
+        if (useXSOverlay) Task.Run(() => SendXSOverlay(title, message, timeout));
+        if (useOVRToolkit) Task.Run(() => SendOVRToolkit(title, message));
 
         if (useToast)
         {
@@ -377,7 +377,9 @@ internal static partial class Program
 
         if (!string.IsNullOrEmpty(callbackUrl))
         {
-            SendCallback(callbackUrl, result, checkboxChecked, checkbox, startTime, finalEndTime);
+            Task.Run(() => SendCallback(callbackUrl, result, checkboxChecked, checkbox, startTime, finalEndTime));
+            // Give a tiny bit of time for the background task to start/send if the process is about to kill itself
+            Thread.Sleep(200); 
         }
     }
 
