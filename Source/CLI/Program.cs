@@ -76,6 +76,7 @@ internal static partial class Program
         string result = "None";
         int intResult = 0;
         bool checkboxChecked = false;
+        long startTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
         if (useClassic)
         {
@@ -102,7 +103,8 @@ internal static partial class Program
                 var timer = new System.Windows.Forms.Timer { Interval = timeout };
                 timer.Tick += (s, e) => { 
                     timer.Stop(); 
-                    if (!string.IsNullOrEmpty(callbackUrl)) SendCallback(callbackUrl, "Timeout", 32000, false, "The dialog timed out.", checkbox);
+                    long endTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                    if (!string.IsNullOrEmpty(callbackUrl)) SendCallback(callbackUrl, "Timeout", 32000, false, "The dialog timed out.", checkbox, startTime, endTime);
                     Application.Exit(); Environment.Exit(0); 
                 };
                 timer.Start();
@@ -160,7 +162,8 @@ internal static partial class Program
                 var timer = new System.Windows.Forms.Timer { Interval = timeout };
                 timer.Tick += (s, e) => { 
                     timer.Stop(); 
-                    if (!string.IsNullOrEmpty(callbackUrl)) SendCallback(callbackUrl, "Timeout", 32000, false, "The dialog timed out.", checkbox);
+                    long endTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                    if (!string.IsNullOrEmpty(callbackUrl)) SendCallback(callbackUrl, "Timeout", 32000, false, "The dialog timed out.", checkbox, startTime, endTime);
                     Application.Exit(); 
                 };
                 timer.Start();
@@ -184,6 +187,8 @@ internal static partial class Program
             else intResult = 2; // Default to IDCANCEL if unknown
         }
 
+        long finalEndTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
         string resultDesc = intResult switch
         {
             1 => "The OK button was selected.",
@@ -202,11 +207,11 @@ internal static partial class Program
 
         if (!string.IsNullOrEmpty(callbackUrl))
         {
-            SendCallback(callbackUrl, result, intResult, checkboxChecked, resultDesc, checkbox);
+            SendCallback(callbackUrl, result, intResult, checkboxChecked, resultDesc, checkbox, startTime, finalEndTime);
         }
     }
 
-    private static void SendCallback(string url, string result, int intResult, bool checkboxChecked, string description, string checkboxText)
+    private static void SendCallback(string url, string result, int intResult, bool checkboxChecked, string description, string checkboxText, long started, long finished)
     {
         try
         {
@@ -220,7 +225,9 @@ internal static partial class Program
                               .Replace("{checkbox_checked}", checkboxChecked.ToString().ToLower())
                               .Replace("{cb_checked}", checkboxChecked.ToString().ToLower())
                               .Replace("{checkbox_text}", checkboxText)
-                              .Replace("{cb_text}", checkboxText);
+                              .Replace("{cb_text}", checkboxText)
+                              .Replace("{time_started}", started.ToString())
+                              .Replace("{time_finished}", finished.ToString());
 
             using var client = new HttpClient();
             _ = client.GetAsync(finalUrl).Result;
