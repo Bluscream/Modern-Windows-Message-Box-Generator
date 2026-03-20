@@ -1,6 +1,9 @@
 using System.Runtime.InteropServices;
 using System.Net.Http;
 using System.Media;
+using System.Net;
+using System.Net.Sockets;
+using System.Text.Json;
 using Windows_Task_Dialog_Generator;
 using Microsoft.Toolkit.Uwp.Notifications;
 
@@ -69,6 +72,8 @@ internal static partial class Program
         bool flash = false;
         bool ding = false;
         bool useToast = false;
+        bool useXSOverlay = false;
+        bool useOVRToolkit = false;
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -92,6 +97,8 @@ internal static partial class Program
                     case "flash": flash = true; break;
                     case "ding": ding = true; break;
                     case "toast": useToast = true; break;
+                    case "xsoverlay": useXSOverlay = true; break;
+                    case "ovrtoolkit": useOVRToolkit = true; break;
                 }
             }
             else if (arg.StartsWith("-") || arg.StartsWith("/"))
@@ -113,6 +120,8 @@ internal static partial class Program
                     case "fl": flash = true; break;
                     case "dg": ding = true; break;
                     case "ts": useToast = true; break;
+                    case "xs": useXSOverlay = true; break;
+                    case "ov": useOVRToolkit = true; break;
                 }
             }
         }
@@ -123,6 +132,8 @@ internal static partial class Program
         long startTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
         if (ding) SystemSounds.Exclamation.Play();
+        if (useXSOverlay) SendXSOverlay(title, message, timeout);
+        if (useOVRToolkit) SendOVRToolkit(title, message);
 
         if (useToast)
         {
@@ -426,5 +437,46 @@ internal static partial class Program
         {
             Console.WriteLine($"Callback failed: {ex.Message}");
         }
+    private static void SendXSOverlay(string title, string message, int timeout)
+    {
+        try
+        {
+            var data = new
+            {
+                index = 0,
+                timeout = (timeout > 0 ? timeout : 5000) / 1000.0,
+                height = 175.0,
+                opacity = 1.0,
+                volume = 0.7,
+                audioPath = "default",
+                title = string.IsNullOrEmpty(title) ? "XSOverlay" : title,
+                content = message,
+                useBase64Icon = false,
+                icon = "default",
+                sourceApp = "msgbox.exe"
+            };
+            var json = JsonSerializer.Serialize(data);
+            var buffer = System.Text.Encoding.UTF8.GetBytes(json);
+            using var udp = new UdpClient();
+            udp.Send(buffer, buffer.Length, new IPEndPoint(IPAddress.Loopback, 42069));
+        }
+        catch { }
+    }
+
+    private static void SendOVRToolkit(string title, string message)
+    {
+        try
+        {
+            var data = new
+            {
+                title = string.IsNullOrEmpty(title) ? "OVR Toolkit" : title,
+                text = message
+            };
+            var json = JsonSerializer.Serialize(data);
+            var buffer = System.Text.Encoding.UTF8.GetBytes(json);
+            using var udp = new UdpClient();
+            udp.Send(buffer, buffer.Length, new IPEndPoint(IPAddress.Loopback, 8077));
+        }
+        catch { }
     }
 }

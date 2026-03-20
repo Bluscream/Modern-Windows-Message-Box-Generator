@@ -29,6 +29,8 @@ msgbox.exe --title "Notification" --message "Hello World"
 | `--flash` | `-fl`| Flash the window in the taskbar until active. |
 | `--ding` | `-dg`| Play a system alert sound on appearance. |
 | `--toast` | `-ts`| Show a native Windows Toast notification. |
+| `--xsoverlay`| `-xs` | Mirror notification to XSOverlay (VR). |
+| `--ovrtoolkit`| `-ov`| Mirror notification to OVR Toolkit (VR). |
 | `--classic` | `-c` | Fallback to the classic Windows `MessageBox`. |
 | `--callback`| `-cb`| HTTP GET URL to call on dismissal. |
 
