@@ -24,18 +24,68 @@ internal static partial class Program
         string type = "ok";
         string icon = "info";
         int timeout = 0;
+        bool useClassic = false;
 
         for (int i = 0; i < args.Length; i++)
         {
-            var arg = args[i].ToLower().TrimStart('-', '/');
-            switch (arg)
+            var arg = args[i].ToLower();
+            if (arg.StartsWith("--"))
             {
-                case "title": case "t": if (i + 1 < args.Length) title = args[++i]; break;
-                case "message": case "m": if (i + 1 < args.Length) message = args[++i]; break;
-                case "type": if (i + 1 < args.Length) type = args[++i].ToLower(); break;
-                case "icon": case "i": if (i + 1 < args.Length) icon = args[++i].ToLower(); break;
-                case "timeout": if (i + 1 < args.Length && int.TryParse(args[++i], out var t)) timeout = t; break;
+                var cmd = arg.Substring(2);
+                switch (cmd)
+                {
+                    case "title": if (i + 1 < args.Length) title = args[++i]; break;
+                    case "message": if (i + 1 < args.Length) message = args[++i]; break;
+                    case "type": if (i + 1 < args.Length) type = args[++i].ToLower(); break;
+                    case "icon": if (i + 1 < args.Length) icon = args[++i].ToLower(); break;
+                    case "timeout": if (i + 1 < args.Length && int.TryParse(args[++i], out var t)) timeout = t; break;
+                    case "classic": useClassic = true; break;
+                }
             }
+            else if (arg.StartsWith("-") || arg.StartsWith("/"))
+            {
+                var cmd = arg.Substring(1);
+                switch (cmd)
+                {
+                    case "title": case "t": if (i + 1 < args.Length) title = args[++i]; break;
+                    case "message": case "m": if (i + 1 < args.Length) message = args[++i]; break;
+                    case "type": if (i + 1 < args.Length) type = args[++i].ToLower(); break;
+                    case "icon": case "i": if (i + 1 < args.Length) icon = args[++i].ToLower(); break;
+                    case "timeout": if (i + 1 < args.Length && int.TryParse(args[++i], out var t)) timeout = t; break;
+                    case "classic": case "c": useClassic = true; break;
+                }
+            }
+        }
+
+        if (useClassic)
+        {
+            MessageBoxButtons buttons = MessageBoxButtons.OK;
+            switch (type)
+            {
+                case "okcancel": case "mb_okcancel": buttons = MessageBoxButtons.OKCancel; break;
+                case "yesno": case "mb_yesno": buttons = MessageBoxButtons.YesNo; break;
+                case "yesnocancel": case "mb_yesnocancel": buttons = MessageBoxButtons.YesNoCancel; break;
+                case "retrycancel": case "mb_retrycancel": buttons = MessageBoxButtons.RetryCancel; break;
+                case "abortretryignore": buttons = MessageBoxButtons.AbortRetryIgnore; break;
+            }
+
+            MessageBoxIcon msgBoxIcon = MessageBoxIcon.None;
+            switch (icon)
+            {
+                case "info": case "information": case "mb_iconinformation": case "mb_iconasterisk": msgBoxIcon = MessageBoxIcon.Information; break;
+                case "warning": case "mb_iconwarning": case "mb_iconexclamation": msgBoxIcon = MessageBoxIcon.Warning; break;
+                case "error": case "mb_iconerror": case "mb_iconstop": case "mb_iconhand": msgBoxIcon = MessageBoxIcon.Error; break;
+            }
+
+            if (timeout > 0)
+            {
+                var timer = new System.Windows.Forms.Timer { Interval = timeout };
+                timer.Tick += (s, e) => { timer.Stop(); Application.Exit(); Environment.Exit(0); };
+                timer.Start();
+            }
+
+            MessageBox.Show(message, string.IsNullOrEmpty(title) ? " " : title, buttons, msgBoxIcon);
+            return;
         }
 
         var page = new TaskDialogPage()
