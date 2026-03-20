@@ -24,6 +24,10 @@ internal static partial class Program
         string message = "";
         string type = "ok";
         string icon = "info";
+        string heading = "";
+        string footer = "";
+        string details = "";
+        string checkbox = "";
         int timeout = 0;
         bool useClassic = false;
         string callbackUrl = "";
@@ -38,6 +42,10 @@ internal static partial class Program
                 {
                     case "title": if (i + 1 < args.Length) title = args[++i]; break;
                     case "message": if (i + 1 < args.Length) message = args[++i]; break;
+                    case "heading": if (i + 1 < args.Length) heading = args[++i]; break;
+                    case "footer": if (i + 1 < args.Length) footer = args[++i]; break;
+                    case "details": if (i + 1 < args.Length) details = args[++i]; break;
+                    case "checkbox": if (i + 1 < args.Length) checkbox = args[++i]; break;
                     case "type": if (i + 1 < args.Length) type = args[++i].ToLower(); break;
                     case "icon": if (i + 1 < args.Length) icon = args[++i].ToLower(); break;
                     case "timeout": if (i + 1 < args.Length && int.TryParse(args[++i], out var t)) timeout = t; break;
@@ -52,6 +60,10 @@ internal static partial class Program
                 {
                     case "title": case "t": if (i + 1 < args.Length) title = args[++i]; break;
                     case "message": case "m": if (i + 1 < args.Length) message = args[++i]; break;
+                    case "heading": case "h": if (i + 1 < args.Length) heading = args[++i]; break;
+                    case "footer": case "f": if (i + 1 < args.Length) footer = args[++i]; break;
+                    case "details": case "d": if (i + 1 < args.Length) details = args[++i]; break;
+                    case "checkbox": case "x": if (i + 1 < args.Length) checkbox = args[++i]; break;
                     case "type": if (i + 1 < args.Length) type = args[++i].ToLower(); break;
                     case "icon": case "i": if (i + 1 < args.Length) icon = args[++i].ToLower(); break;
                     case "timeout": if (i + 1 < args.Length && int.TryParse(args[++i], out var t)) timeout = t; break;
@@ -63,6 +75,7 @@ internal static partial class Program
 
         string result = "None";
         int intResult = 0;
+        bool checkboxChecked = false;
 
         if (useClassic)
         {
@@ -89,7 +102,7 @@ internal static partial class Program
                 var timer = new System.Windows.Forms.Timer { Interval = timeout };
                 timer.Tick += (s, e) => { 
                     timer.Stop(); 
-                    if (!string.IsNullOrEmpty(callbackUrl)) SendCallback(callbackUrl, "Timeout", 32000);
+                    if (!string.IsNullOrEmpty(callbackUrl)) SendCallback(callbackUrl, "Timeout", 32000, false, "The dialog timed out.", checkbox);
                     Application.Exit(); Environment.Exit(0); 
                 };
                 timer.Start();
@@ -104,10 +117,14 @@ internal static partial class Program
             var page = new TaskDialogPage()
             {
                 Caption = string.IsNullOrEmpty(title) ? " " : title,
-                Heading = "",
+                Heading = heading,
                 Text = message,
                 AllowCancel = true
             };
+
+            if (!string.IsNullOrEmpty(footer)) page.Footnote = new TaskDialogFootnote { Text = footer };
+            if (!string.IsNullOrEmpty(details)) page.Expander = new TaskDialogExpander { Text = details };
+            if (!string.IsNullOrEmpty(checkbox)) page.Verification = new TaskDialogVerificationCheckBox { Text = checkbox };
 
             switch (type)
             {
@@ -143,7 +160,7 @@ internal static partial class Program
                 var timer = new System.Windows.Forms.Timer { Interval = timeout };
                 timer.Tick += (s, e) => { 
                     timer.Stop(); 
-                    if (!string.IsNullOrEmpty(callbackUrl)) SendCallback(callbackUrl, "Timeout", 32000);
+                    if (!string.IsNullOrEmpty(callbackUrl)) SendCallback(callbackUrl, "Timeout", 32000, false, "The dialog timed out.", checkbox);
                     Application.Exit(); 
                 };
                 timer.Start();
@@ -151,6 +168,7 @@ internal static partial class Program
 
             var button = TaskDialog.ShowDialog(page);
             result = button?.Text ?? "Cancel";
+            checkboxChecked = page.Verification?.Checked ?? false;
             
             // Map TaskDialogButton to standard IDs
             if (button == TaskDialogButton.OK) intResult = 1;
@@ -161,16 +179,34 @@ internal static partial class Program
             else if (button == TaskDialogButton.Yes) intResult = 6;
             else if (button == TaskDialogButton.No) intResult = 7;
             else if (button == TaskDialogButton.Close) intResult = 8;
-            else intResult = 2; // Default to Cancel if unknown
+            else if (button == TaskDialogButton.TryAgain) intResult = 10;
+            else if (button == TaskDialogButton.Continue) intResult = 11;
+            else intResult = 2; // Default to IDCANCEL if unknown
         }
+
+        string resultDesc = intResult switch
+        {
+            1 => "The OK button was selected.",
+            2 => "The Cancel button was selected.",
+            3 => "The Abort button was selected.",
+            4 => "The Retry button was selected.",
+            5 => "The Ignore button was selected.",
+            6 => "The Yes button was selected.",
+            7 => "The No button was selected.",
+            8 => "The Close button was selected.",
+            10 => "The Try Again button was selected.",
+            11 => "The Continue button was selected.",
+            32000 => "The dialog timed out.",
+            _ => "The dialog was dismissed."
+        };
 
         if (!string.IsNullOrEmpty(callbackUrl))
         {
-            SendCallback(callbackUrl, result, intResult);
+            SendCallback(callbackUrl, result, intResult, checkboxChecked, resultDesc, checkbox);
         }
     }
 
-    private static void SendCallback(string url, string result, int intResult)
+    private static void SendCallback(string url, string result, int intResult, bool checkboxChecked, string description, string checkboxText)
     {
         try
         {
@@ -178,7 +214,13 @@ internal static partial class Program
                               .Replace("{return_value_string}", result)
                               .Replace("{ret_str}", result)
                               .Replace("{return_value_int}", intResult.ToString())
-                              .Replace("{ret_int}", intResult.ToString());
+                              .Replace("{ret_int}", intResult.ToString())
+                              .Replace("{return_description}", description)
+                              .Replace("{ret_desc}", description)
+                              .Replace("{checkbox_checked}", checkboxChecked.ToString().ToLower())
+                              .Replace("{cb_checked}", checkboxChecked.ToString().ToLower())
+                              .Replace("{checkbox_text}", checkboxText)
+                              .Replace("{cb_text}", checkboxText);
 
             using var client = new HttpClient();
             _ = client.GetAsync(finalUrl).Result;
