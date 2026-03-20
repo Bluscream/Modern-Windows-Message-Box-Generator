@@ -28,6 +28,7 @@ msgbox.exe --title "Notification" --message "Hello World"
 | `--timeout` | `-o` | Auto-close after `N` milliseconds. |
 | `--flash` | `-fl`| Flash the window in the taskbar until active. |
 | `--ding` | `-dg`| Play a system alert sound on appearance. |
+| `--toast` | `-ts`| Show a native Windows Toast notification. |
 | `--classic` | `-c` | Fallback to the classic Windows `MessageBox`. |
 | `--callback`| `-cb`| HTTP GET URL to call on dismissal. |
 

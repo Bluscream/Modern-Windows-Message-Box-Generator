@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Net.Http;
 using System.Media;
 using Windows_Task_Dialog_Generator;
+using Microsoft.Toolkit.Uwp.Notifications;
 
 namespace Modern_Windows_Message_Box_Generator.CLI;
 
@@ -35,7 +36,7 @@ internal static partial class Program
     {
         if (args.Length == 0)
         {
-            Console.WriteLine("Usage: --title \"...\" --message \"...\" [--type ok|okcancel|...] [--icon info|warning|...] [--timeout ms] [--flash] [--ding]");
+            Console.WriteLine("Usage: --title \"...\" --message \"...\" [--type ok|okcancel|...] [--icon info|warning|...] [--timeout ms] [--flash] [--ding] [--toast]");
             return;
         }
 
@@ -54,6 +55,7 @@ internal static partial class Program
         string callbackUrl = "";
         bool flash = false;
         bool ding = false;
+        bool useToast = false;
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -76,6 +78,7 @@ internal static partial class Program
                     case "callback": if (i + 1 < args.Length) callbackUrl = args[++i]; break;
                     case "flash": flash = true; break;
                     case "ding": ding = true; break;
+                    case "toast": useToast = true; break;
                 }
             }
             else if (arg.StartsWith("-") || arg.StartsWith("/"))
@@ -96,6 +99,7 @@ internal static partial class Program
                     case "cb": if (i + 1 < args.Length) callbackUrl = args[++i]; break;
                     case "fl": flash = true; break;
                     case "dg": ding = true; break;
+                    case "ts": useToast = true; break;
                 }
             }
         }
@@ -107,7 +111,84 @@ internal static partial class Program
 
         if (ding) SystemSounds.Exclamation.Play();
 
-        if (useClassic)
+        if (useToast)
+        {
+            var sem = new SemaphoreSlim(0);
+            string toastResult = "Dismissed";
+            int toastIntResult = 2; // Default to Cancel/Dismissed
+
+            var builder = new ToastContentBuilder()
+                .AddText(string.IsNullOrEmpty(title) ? "Notification" : title)
+                .AddText(message);
+
+            if (!string.IsNullOrEmpty(heading)) builder.AddHeader("123", heading, "");
+            
+            switch (type)
+            {
+                case "okcancel": 
+                    builder.AddButton(new ToastButton("OK", "ok"));
+                    builder.AddButton(new ToastButton("Cancel", "cancel"));
+                    break;
+                case "yesno":
+                    builder.AddButton(new ToastButton("Yes", "yes"));
+                    builder.AddButton(new ToastButton("No", "no"));
+                    break;
+                case "yesnocancel":
+                    builder.AddButton(new ToastButton("Yes", "yes"));
+                    builder.AddButton(new ToastButton("No", "no"));
+                    builder.AddButton(new ToastButton("Cancel", "cancel"));
+                    break;
+                case "retrycancel":
+                    builder.AddButton(new ToastButton("Retry", "retry"));
+                    builder.AddButton(new ToastButton("Cancel", "cancel"));
+                    break;
+                default:
+                    builder.AddButton(new ToastButton("OK", "ok"));
+                    break;
+            }
+
+            ToastNotificationManagerCompat.OnActivated += toastArgs =>
+            {
+                toastResult = toastArgs.Argument switch
+                {
+                    "ok" => "OK",
+                    "cancel" => "Cancel",
+                    "yes" => "Yes",
+                    "no" => "No",
+                    "retry" => "Retry",
+                    _ => "Clicked"
+                };
+                toastIntResult = toastArgs.Argument switch
+                {
+                    "ok" => 1,
+                    "cancel" => 2,
+                    "yes" => 6,
+                    "no" => 7,
+                    "retry" => 4,
+                    _ => 1
+                };
+                sem.Release();
+            };
+
+            builder.Show();
+
+            if (timeout > 0)
+            {
+                if (!sem.Wait(timeout))
+                {
+                    toastResult = "Timeout";
+                    toastIntResult = 32000;
+                }
+            }
+            else
+            {
+                sem.Wait();
+            }
+
+            result = toastResult;
+            intResult = toastIntResult;
+        }
+        else if (useClassic)
         {
             MessageBoxButtons buttons = MessageBoxButtons.OK;
             switch (type)
